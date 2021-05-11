@@ -21,6 +21,7 @@ title : 뉴스기사 타이틀
 contents : 뉴스기사 본문 html
 url : 뉴스기사 url
 press : 언론사
+datetime : 뉴스기사 작성시간
 ```
 #### 데이터베이스 실행
 ```
