@@ -14,3 +14,4 @@ class NaverNewsItem(scrapy.Item):
     url = scrapy.Field() # 뉴스 url
     contents = scrapy.Field() # 뉴스 본문
     press = scrapy.Field() # 언론사
+    datetime = scrapy.Field() # 기사작성시간

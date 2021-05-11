@@ -2,6 +2,8 @@ import scrapy
 from lxml import html
 from naver_news.items import NaverNewsItem
 import pandas as pd
+import re
+import datetime
 df = pd.read_csv('../언론사_코드_매핑.csv') # 네이버 뉴스에서 제공하는 언론사별 코드번호 매핑 파일
 class NavernewsSpider(scrapy.Spider):
     
@@ -21,8 +23,12 @@ class NavernewsSpider(scrapy.Spider):
             )
     def parse_url(self, response):
         tree = html.fromstring(response.text)
-
-        items = list(zip(*[tree.xpath('//div[@class="news_area"]/a/@title'),tree.xpath('//div[@class="news_area"]/a/@href'),tree.xpath('//a[@class="info press"]/text()')]))
+        pattern_minute = re.compile('[0-9]*[분]+\s[전]')
+        pattern_hour = re.compile('[0-9]*[시간]+\s[전]')
+        pattern_day = re.compile('[0-9]*[일]+\s[전]')
+        date = [i for i in tree.xpath('//span[@class="info"]/text()') if pattern_day.match(i) or pattern_hour.match(i) or pattern_day.match(i)]
+        
+        items = list(zip(*[tree.xpath('//div[@class="news_area"]/a/@title'),tree.xpath('//div[@class="news_area"]/a/@href'),tree.xpath('//a[@class="info press"]/text()'), date]))
         next_page = tree.xpath('//div[@class="sc_page"]/a[@class="btn_next"]/@aria-disabled')[0] 
         next_page_url = tree.xpath('//div[@class="sc_page"]/a[@class="btn_next"]/@href')[0] # 다음 페이지가 없을 경우, length 에러가 뜨면서 넘어감
         
@@ -30,7 +36,7 @@ class NavernewsSpider(scrapy.Spider):
             yield scrapy.Request(
                 url=item[1],
                 callback=self.parse,
-                meta={'title':item[0],'url':item[1],'press':item[2]}
+                meta={'title':item[0],'url':item[1],'press':item[2], 'datetime':item[3]}
             )
         if next_page == 'false': # 다음 페이지가 있을 경우
             yield scrapy.Request(
@@ -39,6 +45,28 @@ class NavernewsSpider(scrapy.Spider):
             )
     def parse(self, response):
         news_items = NaverNewsItem()
+        idatetime = response.meta['datetime']
+        pattern = re.compile('[0-9]+[분|시간|일]+\s[전]+') ## 시간스탬프를 위한 정규식
+        now = datetime.datetime.now()
+        pattern_minute = re.compile('[0-9]*[분]+\s[전]')
+        pattern_hour = re.compile('[0-9]*[시간]+\s[전]')
+        pattern_day = re.compile('[0-9]*[일]+\s[전]')
+        if pattern_minute.match(idatetime):
+            result = pattern_minute.match(idatetime)
+            minute = result.group().split('분')[0]
+            idatetime = now - datetime.timedelta(minutes=int(minute))
+            idatetime = idatetime.strftime('%Y.%m.%d.')
+        elif pattern_hour.match(idatetime):
+            result = pattern_hour.match(idatetime)
+            hour = result.group().split('시간')[0]
+            idatetime = now - datetime.timedelta(hours=int(hour))
+            idatetime = idatetime.strftime('%Y.%m.%d.')
+        elif pattern_day.match(idatetime):
+            result = pattern_day.match(idatetime)
+            day = result.group().split('일')[0]
+            idatetime = now - datetime.timedelta(days=int(day))
+            idatetime = idatetime.strftime('%Y.%m.%d.')
+
         title = response.meta['title']
         url = response.meta['url']
         press = response.meta['press']
@@ -48,6 +76,6 @@ class NavernewsSpider(scrapy.Spider):
         news_items['url'] = url
         news_items['press'] = press
         news_items['contents'] = contents.strip()
-
+        news_items['datetime'] = idatetime
         yield news_items
 
