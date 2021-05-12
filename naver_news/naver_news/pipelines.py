@@ -37,9 +37,8 @@ class NaverNewsCrawlerPipeline:
 
         if not compare:
             self.collection.insert_one(dict(item))  #중복되지 않는다면 추가
-        else:
-            spider.close_down = True #중복되는 게 발견하면 크롤링을 중지
+        # else:
+        #     spider.close_down = True #중복되는 게 발견하면 크롤링을 중지
 
-
-        # return item
+        return item['datetime']
         pass
